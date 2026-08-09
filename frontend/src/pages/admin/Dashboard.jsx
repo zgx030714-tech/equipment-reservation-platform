@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Calendar, Clock, AlertCircle, CheckCircle2, Database, Plus, Trash2, XCircle } from 'lucide-react';
+import { addEquipment } from '../../api/index'; 
 
 export default function PersonalizedDashboard({ user, equipments, setEquipments, onNavigate, showToast }) {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -173,12 +174,30 @@ export default function PersonalizedDashboard({ user, equipments, setEquipments,
 
       {isAddModalOpen && (
         <AddEquipmentModal 
-          onClose={() => setIsAddModalOpen(false)} 
-          onAdd={(newEq) => { 
-            setEquipments([{...newEq, id: Date.now(), status: 'idle'}, ...equipments]); 
-            setIsAddModalOpen(false); 
-            showToast('新设备已录入系统大厅', 'success');
-          }} 
+         onClose={() => setIsAddModalOpen(false)} 
+          onAdd={async (newEq) => { 
+            try {
+              // 1. 数据映射：把前端表单的英文字段，转换为后端 Java 实体类需要的对应字段
+              const backendData = {
+                equipName: newEq.name,
+                assetCode: newEq.code,
+                equipType: newEq.type === '大型精密仪器' ? 1 : (newEq.type === '常规实验设备' ? 2 : 3),
+                techField: newEq.field,
+                qualCtrlType: newEq.needQualification ? 1 : 2
+              };
+
+              // 2. 真正发起网络请求，调用 Java 后端接口
+              await addEquipment(backendData);
+
+              // 3. 后端接口成功返回 (200 OK) 后，再刷新前端页面状态
+              setEquipments([{...newEq, id: Date.now(), status: 'idle'}, ...equipments]); 
+              setIsAddModalOpen(false); 
+              showToast('🎉 新设备已成功录入底层数据库！', 'success');
+            } catch (error) {
+              // 如果后端报错，会在页面右上角弹出红色警告
+              showToast('录入失败：' + (error.message || '服务器异常'), 'error');
+            }
+          }}
         />
       )}
     </div>
@@ -196,7 +215,7 @@ const AddEquipmentModal = ({ onClose, onAdd }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh] animate-fade-in">
         <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 rounded-t-2xl">
           <h2 className="font-bold text-lg text-slate-800">录入新设备基本档案</h2>

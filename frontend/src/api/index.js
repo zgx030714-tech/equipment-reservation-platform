@@ -27,3 +27,8 @@ request.interceptors.response.use(
 export const getEquipmentsPage = (data) => {
   return request.post('/api/v1/equipment/page', data); // 对应你写好的 Controller 路径
 };
+
+// 2. 录入新设备
+export const addEquipment = (data) => {
+  return request.post('/api/v1/equipment/add', data); 
+};
