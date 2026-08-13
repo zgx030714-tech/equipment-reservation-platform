@@ -41,9 +41,24 @@ public class EquipmentController {
         boolean success = equipmentService.save(equipment);
 
         if (success) {
-            return Result.success(true); // 成功返回
+            // MyBatis-Plus 的 save 执行后，会自动将生成的雪花 ID 注入到 equipment 对象中
+            // 这里直接将完整的 equipment 对象返回给前端
+            return Result.success(equipment);
         } else {
             return Result.error(500, "录入新设备失败，请重试");
         }
+    }
+
+    /**
+     * 下架（逻辑删除）设备
+     */
+    @DeleteMapping("/{id}")
+    public Result<String> deleteEquipment(@PathVariable("id") Long id) {
+        // 直接调用 MyBatis-Plus 自带的 removeById 方法触发逻辑删除
+        boolean success = equipmentService.removeById(id);
+        if (success) {
+            return Result.success("设备下架成功！");
+        }
+        return Result.error(500,"设备下架失败，请稍后重试");
     }
 }

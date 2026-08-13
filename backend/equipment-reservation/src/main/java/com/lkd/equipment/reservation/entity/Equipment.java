@@ -3,6 +3,7 @@ package com.lkd.equipment.reservation.entity;
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 import java.io.Serializable;
+import com.fasterxml.jackson.annotation.JsonFormat;
 
 /**
  * 科研设备实体类
@@ -13,7 +14,8 @@ public class Equipment implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    @TableId(type = IdType.ASSIGN_ID)
+    @TableId(value = "id", type = IdType.ASSIGN_ID)
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long id;
 
     /**

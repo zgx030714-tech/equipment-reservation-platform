@@ -32,3 +32,8 @@ export const getEquipmentsPage = (data) => {
 export const addEquipment = (data) => {
   return request.post('/api/v1/equipment/add', data); 
 };
+
+// 3. 下架（逻辑删除）设备
+export const deleteEquipment = (id) => {
+  return request.delete(`/api/v1/equipment/${id}`);
+};

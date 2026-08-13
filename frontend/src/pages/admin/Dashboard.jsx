@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Calendar, Clock, AlertCircle, CheckCircle2, Database, Plus, Trash2, XCircle } from 'lucide-react';
-import { addEquipment } from '../../api/index'; 
+import { addEquipment, deleteEquipment } from '../../api/index'; 
 
 export default function PersonalizedDashboard({ user, equipments, setEquipments, onNavigate, showToast }) {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -16,11 +16,24 @@ export default function PersonalizedDashboard({ user, equipments, setEquipments,
     showToast(`已成功${action === 'pass' ? '通过' : '驳回'}该申请`, action === 'pass' ? 'success' : 'info');
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (deleteTarget) {
-      setEquipments(equipments.filter(eq => eq.id !== deleteTarget));
-      setDeleteTarget(null);
-      showToast('设备已下架并移除', 'success');
+      try {
+        // 1. 真实调用后端删除接口
+        await deleteEquipment(deleteTarget);
+
+        // 2. 只要能走到这里没被 catch 捕获，说明前端拦截器已放行，后端绝对处理成功！
+        // 直接剔除该卡片并关闭弹窗
+        setEquipments(equipments.filter(eq => eq.id !== deleteTarget));
+        setDeleteTarget(null);
+        showToast('设备已成功下架！', 'success');
+        
+      } catch (error) {
+        // 只有后端报错（如重复删除、无权限）时，拦截器才会抛出异常走到这里
+        console.error("下架请求失败:", error);
+        showToast("网络或服务器异常，请重试！", 'error');
+        setDeleteTarget(null);
+      }
     }
   };
 
@@ -177,7 +190,7 @@ export default function PersonalizedDashboard({ user, equipments, setEquipments,
          onClose={() => setIsAddModalOpen(false)} 
           onAdd={async (newEq) => { 
             try {
-              // 1. 数据映射：把前端表单的英文字段，转换为后端 Java 实体类需要的对应字段
+              // 1. 数据映射
               const backendData = {
                 equipName: newEq.name,
                 assetCode: newEq.code,
@@ -186,15 +199,21 @@ export default function PersonalizedDashboard({ user, equipments, setEquipments,
                 qualCtrlType: newEq.needQualification ? 1 : 2
               };
 
-              // 2. 真正发起网络请求，调用 Java 后端接口
-              await addEquipment(backendData);
+              // 2. 真正发起网络请求
+              // 注意：由于全局拦截器已经剥离了 {code: 200, data: ...} 的外层，
+              // 这里返回的 res 直接就是后端 Java 传回来的真实 equipment 实体对象！
+              const res = await addEquipment(backendData);
 
-              // 3. 后端接口成功返回 (200 OK) 后，再刷新前端页面状态
-              setEquipments([{...newEq, id: Date.now(), status: 'idle'}, ...equipments]); 
+              // 3. 只要没报错跳进 catch，就绝对成功了！直接从 res 中拿真实的雪花 ID
+              const realId = res.id; 
+              
+              // 4. 将真实的 ID 绑定到新卡片上，彻底消灭假数据
+              setEquipments([{...newEq, id: realId, status: 'idle'}, ...equipments]); 
               setIsAddModalOpen(false); 
-              showToast('🎉 新设备已成功录入底层数据库！', 'success');
+              showToast('新设备已成功录入！', 'success');
+              
             } catch (error) {
-              // 如果后端报错，会在页面右上角弹出红色警告
+              // 只有后端真的报错崩溃，或者网络断开，才会走到这里
               showToast('录入失败：' + (error.message || '服务器异常'), 'error');
             }
           }}

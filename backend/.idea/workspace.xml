@@ -5,8 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f022b88b-bb4a-4dd7-ac94-3845724fcd58" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/dataSources.local.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources.local.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/equipment-reservation/src/main/java/com/lkd/equipment/reservation/controller/EquipmentController.java" beforeDir="false" afterPath="$PROJECT_DIR$/equipment-reservation/src/main/java/com/lkd/equipment/reservation/controller/EquipmentController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/equipment-reservation/src/main/java/com/lkd/equipment/reservation/entity/Equipment.java" beforeDir="false" afterPath="$PROJECT_DIR$/equipment-reservation/src/main/java/com/lkd/equipment/reservation/entity/Equipment.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -106,7 +108,8 @@
       <workItem from="1785854893094" duration="4686000" />
       <workItem from="1786030733241" duration="256000" />
       <workItem from="1786088433373" duration="3390000" />
-      <workItem from="1786271142087" duration="3543000" />
+      <workItem from="1786271142087" duration="3740000" />
+      <workItem from="1786445979885" duration="7433000" />
     </task>
     <servers />
   </component>
