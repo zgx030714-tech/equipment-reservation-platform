@@ -24,7 +24,7 @@ request.interceptors.response.use(
 // --- 具体的业务接口 API ---
 
 // 1. 分页查询科研设备列表
-export const getEquipmentsPage = (data) => {
+export const queryEquipmentPage = (data) => {
   return request.post('/api/v1/equipment/page', data); // 对应你写好的 Controller 路径
 };
 

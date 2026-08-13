@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Search, Bell, LayoutDashboard, Database, BarChart3, CheckCircle2, XCircle, Info, LogOut } from 'lucide-react';
 
 import { useEffect } from 'react';
-import { getEquipmentsPage } from './api/index';
+import { queryEquipmentPage } from './api/index';
 
 import LoginScreen from './pages/login/Login';
 import ResourcePortal from './pages/portal/Portal';
@@ -89,8 +89,8 @@ export default function App() {
 
   const fetchRealEquipments = async () => {
     try {
-      // 模拟传递分页参数（您可以根据 DTO 的实际结构调整）
-      const pageData = await getEquipmentsPage({ current: 1, size: 50 });
+      // 🌟 这里把原来的 getEquipmentsPage 改成了 queryEquipmentPage！
+      const pageData = await queryEquipmentPage({ current: 1, size: 50 }); 
       
       // 假设您的后端 MyBatis-Plus 返回的对象包含 records 数组
       if (pageData && pageData.records) {

@@ -19,7 +19,7 @@ public class EquipmentController {
      * 分页条件查询科研设备大厅
      */
     @PostMapping("/page")
-    public Result<Page<Equipment>> getEquipmentPage(@RequestBody EquipmentQueryDTO queryDTO) {
+    public Result<Page<Equipment>> queryEquipmentPage(@RequestBody EquipmentQueryDTO queryDTO) {
         Page<Equipment> pageResult = equipmentService.queryEquipmentPage(queryDTO);
         return Result.success(pageResult); // 使用咱们在 common 模块封装好的统一响应
     }

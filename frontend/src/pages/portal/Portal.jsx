@@ -1,18 +1,67 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Database, ShieldAlert } from 'lucide-react';
 
-export default function ResourcePortal({ equipments, searchQuery, onNavigate }) {
+// 🌟 1. 引入后端接口：请确保你的 api/index.js 中有这个方法（如果没有请按照之前的类似格式建一个）
+// 注意：如果你的 api 文件夹路径不对，请自行微调 (比如 '../api/index')
+import { queryEquipmentPage } from '../../api/index'; 
+
+// 🌟 2. 删掉了 props 传进来的 equipments，因为我们现在要自己去后端查真实数据了！
+export default function ResourcePortal({ searchQuery, onNavigate }) {
   const [filterField, setFilterField] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterQual, setFilterQual] = useState('all');
 
-  const filteredEquips = equipments.filter(eq => {
-    const matchSearch = !searchQuery || eq.name.includes(searchQuery) || eq.code.includes(searchQuery) || eq.location.includes(searchQuery);
-    const matchField = filterField === 'all' || eq.field === filterField;
-    const matchStatus = filterStatus === 'all' || eq.status === filterStatus;
-    const matchQual = filterQual === 'all' || (filterQual === 'yes' ? eq.needQualification : !eq.needQualification);
-    return matchSearch && matchField && matchStatus && matchQual;
-  });
+  // 🌟 3. 新增一个内部状态，用来存放真正从 MySQL 数据库拉取回来的设备列表
+  const [equipments, setEquipments] = useState([]);
+
+// 🌟 4. 编写连接后端、拉取精准数据的核心函数
+  const fetchEquipmentsData = async () => {
+    try {
+      // 组装发给后端的筛选参数
+      const params = {
+        pageNo: 1, 
+        pageSize: 100,            
+        equipName: searchQuery,   
+        filterField: filterField, 
+        filterStatus: filterStatus, 
+        filterQual: filterQual    
+      };
+
+      // 真正向后端发起请求
+      const res = await queryEquipmentPage(params);
+
+      // 🌟 核心修复点：因为 index.js 的拦截器已经帮我们脱掉了 {code: 200} 的外壳，
+      // 这里返回的 res 直接就是后端的 Page 对象！直接判断 res 存不存在即可！
+      if (res) {
+        // 取出分页的 records 数组
+        const rawList = res.records || res || [];
+
+        // 字段翻译映射
+        const formattedList = rawList.map(item => ({
+          id: item.id,
+          name: item.equipName,           
+          code: item.assetCode,           
+          location: item.location || '材料楼 101', // 防止后端没传地点导致报错
+          field: item.techField,          
+          status: item.status === 1 ? 'idle' : (item.status === 2 ? 'occupied' : 'maintenance'),
+          needQualification: item.qualCtrlType === 1,
+          type: item.equipType === 1 ? '大型精密仪器' : (item.equipType === 2 ? '常规实验设备' : '实验场地')
+        }));
+
+        // 将完美翻译后的数据塞给页面渲染
+        setEquipments(formattedList);
+      }
+    } catch (error) {
+      console.error("查询设备资源失败:", error);
+    }
+  };
+
+  // 🌟 6. React 核心魔法：只要数组里的这几个条件一旦发生变化，立刻自动执行去后端查数据的函数！
+  useEffect(() => {
+    fetchEquipmentsData();
+  }, [searchQuery, filterField, filterStatus, filterQual]);
+
+  // 🌟 原先这里长长的一串 const filteredEquips = ... 纯前端“假过滤”代码，现在被彻底干掉了！
 
   return (
     <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-6">
@@ -44,14 +93,15 @@ export default function ResourcePortal({ equipments, searchQuery, onNavigate }) 
         </div>
       </div>
 
-      {filteredEquips.length === 0 ? (
+      {/* 🌟 7. UI 展示区域，把原先的 filteredEquips 全部改为了现在的 equipments */}
+      {equipments.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-slate-400">
            <Database size={48} className="mb-4 opacity-30" />
            <p>没有找到符合条件的设备</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredEquips.map(equip => (
+          {equipments.map(equip => (
             <div 
               key={equip.id} 
               onClick={() => onNavigate('detail', equip)}

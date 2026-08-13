@@ -8,7 +8,8 @@
       <change beforePath="$PROJECT_DIR$/.idea/dataSources.local.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources.local.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/equipment-reservation/src/main/java/com/lkd/equipment/reservation/controller/EquipmentController.java" beforeDir="false" afterPath="$PROJECT_DIR$/equipment-reservation/src/main/java/com/lkd/equipment/reservation/controller/EquipmentController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/equipment-reservation/src/main/java/com/lkd/equipment/reservation/entity/Equipment.java" beforeDir="false" afterPath="$PROJECT_DIR$/equipment-reservation/src/main/java/com/lkd/equipment/reservation/entity/Equipment.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/equipment-reservation/src/main/java/com/lkd/equipment/reservation/entity/EquipmentQueryDTO.java" beforeDir="false" afterPath="$PROJECT_DIR$/equipment-reservation/src/main/java/com/lkd/equipment/reservation/entity/EquipmentQueryDTO.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/equipment-reservation/src/main/java/com/lkd/equipment/reservation/service/impl/EquipmentServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/equipment-reservation/src/main/java/com/lkd/equipment/reservation/service/impl/EquipmentServiceImpl.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -110,6 +111,7 @@
       <workItem from="1786088433373" duration="3390000" />
       <workItem from="1786271142087" duration="3740000" />
       <workItem from="1786445979885" duration="7433000" />
+      <workItem from="1786615840027" duration="5213000" />
     </task>
     <servers />
   </component>
