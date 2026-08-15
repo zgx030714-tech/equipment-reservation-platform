@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronRight, ShieldAlert, CheckCircle2, XCircle, Calendar, CalendarDays, MousePointerClick, Upload, FileText } from 'lucide-react';
+// 引入后端接口
+import { submitReservation } from '../../api/index';
 
 const getSafeDateStr = (date) => {
   if (isNaN(date.getTime())) date = new Date();
@@ -19,6 +21,18 @@ export default function EquipmentDetail({ equip, onBack, showToast }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   
   const [baseDate, setBaseDate] = useState(getTodayStr()); 
+
+  // 定义表单数据的状态变量，用于接收用户的输入
+  const [sampleName, setSampleName] = useState(''); // 样品名称
+  const [isHazardous, setIsHazardous] = useState(false); // 是否有毒有害
+  const [proofFileUrl, setProofFileUrl] = useState(''); // 资质证明材料
+  
+  // 用来存储“预约成功后”新增的被占用时间段，让它们立刻变红
+  const [newlyReservedSlots, setNewlyReservedSlots] = useState([]);
+
+  // 🌟 修复 1：提取安全的计费单价，防范后端没传 price 导致没显示
+  const safePrice = equip.price || 200; // 如果后端没传，默认 200元/小时
+  const totalFee = selection.length * safePrice;
 
   const generateDays = (startDateStr) => {
     const daysArr = [];
@@ -56,12 +70,16 @@ export default function EquipmentDetail({ equip, onBack, showToast }) {
     return { dayStr: parts[0], hour: parseInt(parts[1], 10) };
   };
 
-  const occupiedSlots = [
+  // 原有的假数据占用时间段
+  const defaultOccupiedSlots = [
     getSlotId(days[0].id, 2), getSlotId(days[0].id, 3),
     getSlotId(days[1].id, 5), getSlotId(days[1].id, 6),
     getSlotId(days[3].id, 1), getSlotId(days[3].id, 2),
     getSlotId(days[4].id, 8)
   ];
+
+  // 将原有的假数据和刚刚预约成功的数据合并，作为总的占用时间
+  const occupiedSlots = [...defaultOccupiedSlots, ...newlyReservedSlots];
 
   const handleMouseDown = (id) => {
     if (drawerOpen || equip.status === 'maintenance') return;
@@ -103,11 +121,51 @@ export default function EquipmentDetail({ equip, onBack, showToast }) {
     setConflict(hasConflict);
   };
 
-  const handleSubmitOrder = () => {
-    showToast('提交成功！系统已为您保留该时段', 'success');
-    setDrawerOpen(false);
-    setSelection([]);
-    onBack();
+  // 🌟 修复 2：将 alert 替换为 showToast，并精准捕获和提示异常信息
+  const handleSubmitOrder = async () => {
+    if (!sampleName.trim()) {
+      showToast("请完善预约信息：测试样品信息为必填项！", "warning");
+      return;
+    }
+    
+    if (equip.needQualification && !proofFileUrl) {
+      showToast("请完善预约信息：强管控设备资质证明材料为必填项！", "warning");
+      return;
+    }
+
+    if (selection.length === 0) {
+      showToast("请完善预约信息：请在左侧甘特图框选预约时间！", "warning");
+      return;
+    }
+
+    try {
+      const payload = {
+        equipId: equip.id, 
+        timeSlots: selection,
+        sampleName: sampleName,
+        isHazardous: isHazardous,
+        proofFileUrl: proofFileUrl,
+        estimatedFee: totalFee 
+      };
+
+      const res = await submitReservation(payload);
+
+      if (res) { 
+        showToast('🎉 预约成功！您可以在工作台查看排期信息。', 'success');
+        
+        setNewlyReservedSlots(prev => [...prev, ...selection]);
+        
+        setDrawerOpen(false);
+        setSelection([]);
+        setSampleName('');
+        setProofFileUrl('');
+        setIsHazardous(false);
+      }
+    } catch (error) {
+      // 🌟 修复 3：捕获后端 500 错误，并用 Toast 显示真实错误
+      console.error("提交预约失败:", error);
+      showToast(error.message || "网络异常，提交预约失败，请稍后重试", "error");
+    }
   };
 
   return (
@@ -125,6 +183,7 @@ export default function EquipmentDetail({ equip, onBack, showToast }) {
 
       <div className="flex-1 overflow-y-auto w-full relative">
         <div className="flex flex-col lg:flex-row p-4 lg:p-6 max-w-7xl mx-auto w-full gap-6 lg:min-h-full">
+          {/* 左侧参数卡片 */}
           <div className="w-full lg:w-1/3 flex flex-col space-y-6 flex-shrink-0">
             <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
               <h3 className="text-sm font-bold text-slate-800 border-b border-slate-100 pb-3 mb-4">设备参数与规则</h3>
@@ -139,7 +198,8 @@ export default function EquipmentDetail({ equip, onBack, showToast }) {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-slate-500 text-sm">计费标准</span>
-                  <span className="text-blue-600 text-sm font-bold bg-blue-50 px-2 py-0.5 rounded">¥ {equip.price}.00 / 小时</span>
+                  {/* 使用提取的 safePrice */}
+                  <span className="text-blue-600 text-sm font-bold bg-blue-50 px-2 py-0.5 rounded">¥ {safePrice}.00 / 小时</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-slate-500 text-sm">所属领域</span>
@@ -166,6 +226,7 @@ export default function EquipmentDetail({ equip, onBack, showToast }) {
             </div>
           </div>
 
+          {/* 右侧排期甘特图面板 */}
           <div className="w-full lg:w-2/3 flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden min-h-[500px] lg:min-h-0" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
             <div className="p-4 border-b border-slate-100 flex flex-wrap justify-between items-center gap-3 bg-slate-50/50">
               <div className="flex items-center space-x-3">
@@ -247,6 +308,8 @@ export default function EquipmentDetail({ equip, onBack, showToast }) {
       </div>
 
       {drawerOpen && <div className="absolute inset-0 bg-slate-900/20 z-20 transition-opacity" onClick={() => {setDrawerOpen(false); setSelection([]);}}></div>}
+      
+      {/* 右侧确认订单抽屉 (Drawer) */}
       <div className={`absolute top-0 right-0 h-full w-full sm:w-[400px] bg-white shadow-[-10px_0_30px_rgba(0,0,0,0.05)] border-l border-slate-200 transform transition-transform duration-300 ease-out z-30 flex flex-col ${drawerOpen ? 'translate-x-0' : 'translate-x-full'}`}>
           <div className="h-16 border-b border-slate-100 flex items-center justify-between px-6 bg-slate-50/50">
             <h2 className="font-bold text-lg text-slate-800">确认预约订单</h2>
@@ -254,6 +317,7 @@ export default function EquipmentDetail({ equip, onBack, showToast }) {
               <XCircle size={20} />
             </button>
           </div>
+          
           <div className="p-6 flex-1 overflow-y-auto space-y-6 bg-white">
             <div>
               <p className="text-xs font-semibold text-slate-500 mb-1">拟预约设备</p>
@@ -269,27 +333,55 @@ export default function EquipmentDetail({ equip, onBack, showToast }) {
             {equip.needQualification && (
               <div>
                 <p className="text-xs font-semibold text-slate-500 mb-2">资质证明材料 <span className="text-red-500">*</span></p>
-                <div className="border-2 border-dashed border-slate-300 rounded-lg p-5 flex flex-col items-center justify-center bg-slate-50 hover:bg-blue-50 hover:border-blue-300 transition-colors cursor-pointer text-slate-500 group">
-                   <Upload size={24} className="mb-2 text-slate-400 group-hover:text-blue-500 transition-colors" />
-                   <p className="text-xs text-center font-medium group-hover:text-blue-600 transition-colors">点击或拖拽上传考核/培训证明</p>
-                   <p className="text-[10px] text-slate-400 mt-1">支持 PDF/JPG/PNG，大小不超过 5MB</p>
+                <div 
+                  className={`border-2 border-dashed ${proofFileUrl ? 'border-emerald-400 bg-emerald-50' : 'border-slate-300 bg-slate-50 hover:bg-blue-50 hover:border-blue-300'} rounded-lg p-5 flex flex-col items-center justify-center transition-colors cursor-pointer text-slate-500 group`}
+                  onClick={() => {
+                    // 模拟文件上传，直接把假URL赋值给变量
+                    setProofFileUrl('https://mock-file-server.com/my-cert.pdf');
+                    showToast('模拟上传证明材料成功！', 'success');
+                  }}
+                >
+                   {proofFileUrl ? (
+                     <>
+                        <CheckCircle2 size={24} className="mb-2 text-emerald-500" />
+                        <p className="text-xs text-center font-bold text-emerald-700">证明材料已上传</p>
+                     </>
+                   ) : (
+                     <>
+                        <Upload size={24} className="mb-2 text-slate-400 group-hover:text-blue-500 transition-colors" />
+                        <p className="text-xs text-center font-medium group-hover:text-blue-600 transition-colors">点击模拟上传考核/培训证明</p>
+                        <p className="text-[10px] text-slate-400 mt-1">支持 PDF/JPG/PNG，大小不超过 5MB</p>
+                     </>
+                   )}
                 </div>
               </div>
             )}
             
             <div>
               <p className="text-xs font-semibold text-slate-500 mb-2">测试样品信息 <span className="text-red-500">*</span></p>
-              <input type="text" placeholder="请输入实验样品名称" className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-md text-sm outline-none focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all mb-3" />
+              <input 
+                type="text" 
+                value={sampleName}
+                onChange={(e) => setSampleName(e.target.value)}
+                placeholder="请输入实验样品名称" 
+                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-md text-sm outline-none focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all mb-3" 
+              />
               <label className="flex items-center space-x-2 text-sm text-slate-600 cursor-pointer select-none">
-                <input type="checkbox" className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4" />
+                <input 
+                  type="checkbox" 
+                  checked={isHazardous}
+                  onChange={(e) => setIsHazardous(e.target.checked)}
+                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4" 
+                />
                 <span>包含有毒、有害或易燃易爆属性</span>
               </label>
             </div>
           </div>
+          
           <div className="p-6 border-t border-slate-100 bg-slate-50">
              <div className="flex justify-between items-end mb-4">
-               <span className="text-sm font-medium text-slate-600">虚拟预扣费 ({equip.price}/时)</span>
-               <span className="text-3xl font-bold text-blue-600">¥ {selection.length * equip.price}.00</span>
+               <span className="text-sm font-medium text-slate-600">虚拟预扣费 ({safePrice}/时)</span>
+               <span className="text-3xl font-bold text-blue-600">¥ {totalFee}.00</span>
              </div>
              <button onClick={handleSubmitOrder} className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-md shadow-blue-200 transition-colors flex items-center justify-center space-x-2">
                <CheckCircle2 size={18} /> <span>确认提交订单</span>

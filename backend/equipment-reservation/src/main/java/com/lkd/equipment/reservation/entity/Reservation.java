@@ -3,6 +3,7 @@ package com.lkd.equipment.reservation.entity;
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -15,14 +16,16 @@ public class Reservation implements Serializable {
     private Long id;
 
     /**
-     * 预约单号 (全局唯一)
+     * 🌟 修复 1：把 reservationNo 改成 orderNo，并强行映射数据库的 order_no 字段
      */
-    private String reservationNo;
+    @TableField("order_no")
+    private String orderNo;
 
     /**
-     * 关联的设备 ID
+     * 🌟 修复 2：把 equipmentId 改成 equipId，并强行映射数据库的 equip_id 字段
      */
-    private Long equipmentId;
+    @TableField("equip_id")
+    private Long equipId;
 
     /**
      * 预约人 (用户 ID)
@@ -45,20 +48,26 @@ public class Reservation implements Serializable {
     private Integer status;
 
     /**
+     * 🌟 修复 3：补充上真实的费用和样品信息字段，替代原来的空方法，保证数据能存进数据库！
+     */
+    private BigDecimal totalFee;
+    private String sampleInfo;
+
+    /**
      * 逻辑删除标识 (0:未删除, 1:已删除)
      */
     @TableLogic
     private Integer deleted;
 
-    /**
-     * 记录创建时间
-     */
-    @TableField(fill = FieldFill.INSERT)
-    private LocalDateTime createTime;
-
-    /**
-     * 记录更新时间
-     */
-    @TableField(fill = FieldFill.INSERT_UPDATE)
-    private LocalDateTime updateTime;
+//    /**
+//     * 记录创建时间
+//     */
+//    @TableField(fill = FieldFill.INSERT)
+//    private LocalDateTime createTime;
+//
+//    /**
+//     * 记录更新时间
+//     */
+//    @TableField(fill = FieldFill.INSERT_UPDATE)
+//    private LocalDateTime updateTime;
 }

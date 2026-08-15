@@ -37,3 +37,8 @@ export const addEquipment = (data) => {
 export const deleteEquipment = (id) => {
   return request.delete(`/api/v1/equipment/${id}`);
 };
+
+// 4. 提交设备预约订单
+export const submitReservation = (data) => {
+  return request.post('/api/v1/reservation/submit', data);
+};
