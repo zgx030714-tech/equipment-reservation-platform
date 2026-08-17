@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, AlertCircle, CheckCircle2, Database, Plus, Trash2, XCircle } from 'lucide-react';
-import { addEquipment, deleteEquipment } from '../../api/index'; 
+// 🌟 1. 引入了 useEffect 和 getOrganizationList
+import { addEquipment, deleteEquipment, getOrganizationList } from '../../api/index'; 
 
 export default function PersonalizedDashboard({ user, equipments, setEquipments, onNavigate, showToast }) {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -19,17 +20,11 @@ export default function PersonalizedDashboard({ user, equipments, setEquipments,
   const confirmDelete = async () => {
     if (deleteTarget) {
       try {
-        // 1. 真实调用后端删除接口
         await deleteEquipment(deleteTarget);
-
-        // 2. 只要能走到这里没被 catch 捕获，说明前端拦截器已放行，后端绝对处理成功！
-        // 直接剔除该卡片并关闭弹窗
         setEquipments(equipments.filter(eq => eq.id !== deleteTarget));
         setDeleteTarget(null);
         showToast('设备已成功下架！', 'success');
-        
       } catch (error) {
-        // 只有后端报错（如重复删除、无权限）时，拦截器才会抛出异常走到这里
         console.error("下架请求失败:", error);
         showToast("网络或服务器异常，请重试！", 'error');
         setDeleteTarget(null);
@@ -168,7 +163,7 @@ export default function PersonalizedDashboard({ user, equipments, setEquipments,
       )}
 
       {deleteTarget && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl p-6 w-96 max-w-full animate-fade-in">
             <div className="flex items-center space-x-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600">
@@ -190,30 +185,30 @@ export default function PersonalizedDashboard({ user, equipments, setEquipments,
          onClose={() => setIsAddModalOpen(false)} 
           onAdd={async (newEq) => { 
             try {
-              // 1. 数据映射
               const backendData = {
                 equipName: newEq.name,
                 assetCode: newEq.code,
                 equipType: newEq.type === '大型精密仪器' ? 1 : (newEq.type === '常规实验设备' ? 2 : 3),
                 techField: newEq.field,
-                qualCtrlType: newEq.needQualification ? 1 : 2
+                qualCtrlType: newEq.needQualification ? 1 : 2,
+                orgId: newEq.orgId,
+                billingMode: newEq.billingMode,
+                unitPrice: newEq.billingMode === 0 ? 0 : parseFloat(newEq.unitPrice || 0),
+                photoUrl: newEq.photoUrl,
+                manualUrl: newEq.manualUrl
               };
 
-              // 2. 真正发起网络请求
-              // 注意：由于全局拦截器已经剥离了 {code: 200, data: ...} 的外层，
-              // 这里返回的 res 直接就是后端 Java 传回来的真实 equipment 实体对象！
               const res = await addEquipment(backendData);
-
-              // 3. 只要没报错跳进 catch，就绝对成功了！直接从 res 中拿真实的雪花 ID
               const realId = res.id; 
               
-              // 4. 将真实的 ID 绑定到新卡片上，彻底消灭假数据
-              setEquipments([{...newEq, id: realId, status: 'idle'}, ...equipments]); 
+              // 🌟 2. 卡片回显优化：直接使用从弹窗传递过来的真实组织名称
+              const mockLocation = newEq.orgName || '暂未分配实验室';
+              
+              setEquipments([{...newEq, id: realId, status: 'idle', location: mockLocation}, ...equipments]); 
               setIsAddModalOpen(false); 
               showToast('新设备已成功录入！', 'success');
               
             } catch (error) {
-              // 只有后端真的报错崩溃，或者网络断开，才会走到这里
               showToast('录入失败：' + (error.message || '服务器异常'), 'error');
             }
           }}
@@ -225,12 +220,46 @@ export default function PersonalizedDashboard({ user, equipments, setEquipments,
 
 const AddEquipmentModal = ({ onClose, onAdd }) => {
   const [formData, setFormData] = useState({
-    name: '', code: '', location: '', type: '大型精密仪器', field: '低碳冶金', needQualification: true, price: ''
+    name: '', code: '', type: '大型精密仪器', field: '低碳冶金', needQualification: true,
+    orgId: '', billingMode: 0, unitPrice: '', photoUrl: '', manualUrl: ''
   });
+
+  // 🌟 3. 新增一个状态，用来装后端查回来的真实组织列表
+  const [orgList, setOrgList] = useState([]);
+
+  // 🌟 4. 组件加载时，立刻去后端请求所有实验室数据
+  useEffect(() => {
+    const fetchOrgs = async () => {
+      try {
+        const res = await getOrganizationList();
+        const list = res.data || res || []; // 适配拦截器
+        setOrgList(list);
+        
+        // 智能小优化：如果查到数据了，默认选中第一个实验室的 ID
+        if(list.length > 0) {
+          setFormData(prev => ({ ...prev, orgId: list[0].id }));
+        }
+      } catch (err) {
+        console.error("拉取组织列表失败", err);
+      }
+    };
+    fetchOrgs();
+  }, []);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onAdd(formData);
+    if (formData.billingMode === 1 && !formData.unitPrice) {
+      alert("请填写计费单价！");
+      return;
+    }
+    
+    // 提交前，把当前选中的实验室名称一并找出来发回给父组件，方便直接在列表里渲染出来
+    const selectedOrg = orgList.find(org => org.id === formData.orgId);
+    
+    onAdd({
+      ...formData,
+      orgName: selectedOrg ? selectedOrg.orgName : '未知实验室'
+    });
   };
 
   return (
@@ -265,22 +294,42 @@ const AddEquipmentModal = ({ onClose, onAdd }) => {
                     <option>低碳冶金</option><option>材料科学</option><option>精细化工</option><option>智能制造</option><option>生物医药</option>
                   </select>
                 </div>
+                {/* 🌟 5. 将原先写死的 option 替换成真实的动态列表渲染 */}
+                <div className="col-span-2">
+                  <label className="block text-xs text-slate-500 mb-1">存放位置 (所属实验室) *</label>
+                  <select required value={formData.orgId} onChange={e=>setFormData({...formData, orgId: Number(e.target.value)})} className="w-full p-2 border border-slate-200 rounded-md text-sm outline-none focus:border-blue-500 font-medium text-slate-700">
+                    {orgList.length === 0 ? (
+                       <option value="">正在加载实验室列表...</option>
+                    ) : (
+                       orgList.map(org => (
+                         <option key={org.id} value={org.id}>{org.orgName}</option>
+                       ))
+                    )}
+                  </select>
+                </div>
               </div>
             </div>
             
             <div className="h-px bg-slate-100 w-full my-4"></div>
             
             <div>
-              <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-3">2. 管控与计费配置</h3>
+              <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-3">2. 管控与计费配置 (biz_equipment_rule)</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs text-slate-500 mb-1">存放位置 (Location)</label>
-                  <input required type="text" value={formData.location} onChange={e=>setFormData({...formData, location: e.target.value})} className="w-full p-2 border border-slate-200 rounded-md text-sm outline-none focus:border-blue-500" placeholder="如：生科楼 101" />
+                  <label className="block text-xs text-slate-500 mb-1">计费模式 *</label>
+                  <select value={formData.billingMode} onChange={e=>setFormData({...formData, billingMode: Number(e.target.value), unitPrice: ''})} className="w-full p-2 border border-slate-200 rounded-md text-sm outline-none focus:border-blue-500">
+                    <option value={0}>免费使用</option>
+                    <option value={1}>按时长计费</option>
+                  </select>
                 </div>
-                <div>
-                  <label className="block text-xs text-slate-500 mb-1">计费单价 (元/小时)</label>
-                  <input required type="number" value={formData.price} onChange={e=>setFormData({...formData, price: e.target.value})} className="w-full p-2 border border-slate-200 rounded-md text-sm outline-none focus:border-blue-500" placeholder="请输入数字" />
-                </div>
+                
+                {formData.billingMode === 1 && (
+                  <div>
+                    <label className="block text-xs text-slate-500 mb-1">计费单价 (元/小时) *</label>
+                    <input required type="number" value={formData.unitPrice} onChange={e=>setFormData({...formData, unitPrice: e.target.value})} className="w-full p-2 border border-slate-200 rounded-md text-sm outline-none focus:border-blue-500" placeholder="如：150" />
+                  </div>
+                )}
+                
                 <div className="col-span-2 bg-slate-50 border border-slate-200 p-4 rounded-lg mt-2 flex items-center justify-between">
                   <div>
                     <p className="text-sm font-bold text-slate-800">开启强管控机制 (需资质白名单准入)</p>
@@ -293,6 +342,20 @@ const AddEquipmentModal = ({ onClose, onAdd }) => {
                 </div>
               </div>
             </div>
+
+            <div className="h-px bg-slate-100 w-full my-4"></div>
+            <div>
+              <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-3">3. 设备附件上传</h3>
+              <div className="flex gap-4">
+                <div onClick={() => { setFormData({...formData, photoUrl: 'mock_photo.jpg'}); alert('设备照片模拟上传成功！') }} className={`flex-1 border-2 border-dashed p-4 text-center cursor-pointer rounded-md transition-colors ${formData.photoUrl ? 'border-emerald-500 text-emerald-600 bg-emerald-50' : 'border-slate-300 text-slate-500 hover:bg-slate-50'}`}>
+                   <p className="text-sm font-bold">{formData.photoUrl ? '✅ 照片已上传' : '📸 点击上传设备照片'}</p>
+                </div>
+                <div onClick={() => { setFormData({...formData, manualUrl: 'mock_manual.pdf'}); alert('操作手册模拟上传成功！') }} className={`flex-1 border-2 border-dashed p-4 text-center cursor-pointer rounded-md transition-colors ${formData.manualUrl ? 'border-emerald-500 text-emerald-600 bg-emerald-50' : 'border-slate-300 text-slate-500 hover:bg-slate-50'}`}>
+                   <p className="text-sm font-bold">{formData.manualUrl ? '✅ 手册已上传' : '📄 点击上传操作手册'}</p>
+                </div>
+              </div>
+            </div>
+
           </form>
         </div>
         <div className="px-6 py-4 border-t border-slate-100 flex justify-end space-x-3 bg-slate-50/50 rounded-b-2xl">

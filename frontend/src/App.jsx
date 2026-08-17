@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Bell, LayoutDashboard, Database, BarChart3, CheckCircle2, XCircle, Info, LogOut } from 'lucide-react';
 
-import { useEffect } from 'react';
 import { queryEquipmentPage } from './api/index';
 
 import LoginScreen from './pages/login/Login';
@@ -9,7 +8,6 @@ import ResourcePortal from './pages/portal/Portal';
 import EquipmentDetail from './pages/equipment/EquipmentDetail';
 import PersonalizedDashboard from './pages/admin/Dashboard';
 import DataDashboard from './pages/admin/DataCenter';
-
 
 const globalStyles = `
   @keyframes shake {
@@ -47,15 +45,6 @@ const globalStyles = `
   .bg-app-layout { background-color: #f0f2f5; }
 `;
 
-// const INITIAL_EQUIPMENTS = [
-//   { id: 1, name: '高分辨透射电子显微镜', code: 'EQ-2026-001', location: '材料楼 101', status: 'idle', type: '大型精密仪器', field: '材料科学', needQualification: true, price: 200 },
-//   { id: 2, name: '场发射扫描电子显微镜', code: 'EQ-2026-002', location: '材料楼 102', status: 'occupied', type: '大型精密仪器', field: '智能制造', needQualification: true, price: 150 },
-//   { id: 3, name: 'X射线衍射仪 (XRD)', code: 'EQ-2026-003', location: '化工楼 205', status: 'maintenance', type: '常规设备', field: '精细化工', needQualification: false, price: 50 },
-//   { id: 4, name: '核磁共振波谱仪', code: 'EQ-2026-004', location: '生科楼 108', status: 'idle', type: '大型精密仪器', field: '生物医药', needQualification: true, price: 300 },
-//   { id: 5, name: '高效液相色谱仪', code: 'EQ-2026-005', location: '化工楼 301', status: 'idle', type: '常规设备', field: '精细化工', needQualification: false, price: 80 },
-//   { id: 6, name: '高温管式真空炉', code: 'EQ-2026-006', location: '冶金楼 112', status: 'occupied', type: '常规设备', field: '低碳冶金', needQualification: false, price: 40 },
-// ];
-
 const NavItem = ({ icon, label, active, onClick }) => (
   <button 
     onClick={onClick}
@@ -76,12 +65,9 @@ export default function App() {
   const [selectedEquip, setSelectedEquip] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   
-  // 初始状态置为空数组
   const [equipments, setEquipments] = useState([]);
 
-  // 组件首次挂载时，去 Java 后端拉取真实数据
   useEffect(() => {
-    // 只有当用户已登录，且处于大厅或工作台时才去拉取
     if (user && (currentPage === 'portal' || currentPage === 'dashboard')) {
       fetchRealEquipments();
     }
@@ -89,22 +75,22 @@ export default function App() {
 
   const fetchRealEquipments = async () => {
     try {
-      // 🌟 这里把原来的 getEquipmentsPage 改成了 queryEquipmentPage！
       const pageData = await queryEquipmentPage({ current: 1, size: 50 }); 
       
-      // 假设您的后端 MyBatis-Plus 返回的对象包含 records 数组
       if (pageData && pageData.records) {
-        // 由于前后端字段命名差异，在映射前做一个简单的适配转换
         const mappedData = pageData.records.map(item => ({
           id: item.id,
-          name: item.equipName,       // 对应后端 equip_name 
-          code: item.assetCode,       // 对应后端 asset_code
-          location: '材料楼 101',      // 暂时写死，因为表中没有放置地点字段
+          name: item.equipName,       
+          code: item.assetCode,       
+          location: item.orgName || '暂未分配实验室', 
           status: item.status === 1 ? 'idle' : item.status === 2 ? 'occupied' : 'maintenance',
           type: item.equipType === 1 ? '大型精密仪器' : '常规设备', 
-          field: item.techField,      // 对应后端 tech_field
-          needQualification: item.qualCtrlType === 1, // 1代表强管控
-          price: 200 // 暂时写死，后续可以扩展计费表
+          field: item.techField,      
+          needQualification: item.qualCtrlType === 1,
+          
+          // 🌟 核心修复点：在这里把后端传回来的计费模式和真实单价映射给前端组件
+          billingMode: item.billingMode !== undefined && item.billingMode !== null ? item.billingMode : 0,
+          price: item.unitPrice || 0
         }));
         setEquipments(mappedData);
       }
