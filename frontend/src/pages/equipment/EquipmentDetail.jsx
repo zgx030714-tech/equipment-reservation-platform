@@ -20,6 +20,10 @@ export default function EquipmentDetail({ equip, onBack, showToast }) {
   
   const [baseDate, setBaseDate] = useState(getTodayStr()); 
 
+  // 🌟 核心修改 1：智能提取单价与总计费用
+  const safePrice = equip.price || 0; 
+  const totalFee = equip.billingMode === 0 ? 0 : selection.length * safePrice;
+
   const generateDays = (startDateStr) => {
     const daysArr = [];
     let base = new Date();
@@ -139,7 +143,10 @@ export default function EquipmentDetail({ equip, onBack, showToast }) {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-slate-500 text-sm">计费标准</span>
-                  <span className="text-blue-600 text-sm font-bold bg-blue-50 px-2 py-0.5 rounded">¥ {equip.price}.00 / 小时</span>
+                  {/* 🌟 核心修改 2：左侧信息栏智能显示免费/价格 */}
+                  <span className="text-blue-600 text-sm font-bold bg-blue-50 px-2 py-0.5 rounded">
+                    {equip.billingMode === 0 ? '免费使用' : `¥ ${safePrice} / 小时`}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-slate-500 text-sm">所属领域</span>
@@ -287,9 +294,12 @@ export default function EquipmentDetail({ equip, onBack, showToast }) {
             </div>
           </div>
           <div className="p-6 border-t border-slate-100 bg-slate-50">
+             {/* 🌟 核心修改 3：右侧抽屉费用预估智能显示免费/总价 */}
              <div className="flex justify-between items-end mb-4">
-               <span className="text-sm font-medium text-slate-600">虚拟预扣费 ({equip.price}/时)</span>
-               <span className="text-3xl font-bold text-blue-600">¥ {selection.length * equip.price}.00</span>
+               <span className="text-sm font-medium text-slate-600">
+                 虚拟预扣费 ({equip.billingMode === 0 ? '免费' : `${safePrice}元/时`})
+               </span>
+               <span className="text-3xl font-bold text-blue-600">¥ {totalFee}.00</span>
              </div>
              <button onClick={handleSubmitOrder} className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-md shadow-blue-200 transition-colors flex items-center justify-center space-x-2">
                <CheckCircle2 size={18} /> <span>确认提交订单</span>

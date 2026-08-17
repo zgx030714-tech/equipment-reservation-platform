@@ -27,6 +27,10 @@ request.interceptors.response.use(
 export const queryEquipmentPage = (data) => {
   return request.post('/api/v1/equipment/page', data); // 对应你写好的 Controller 路径
 };
+// 查询所有实验室
+export const getOrganizationList = () => {
+  return request.get('/api/v1/organization/list');
+};
 
 // 2. 录入新设备
 export const addEquipment = (data) => {

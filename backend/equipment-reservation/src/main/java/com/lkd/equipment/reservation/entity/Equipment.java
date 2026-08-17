@@ -63,4 +63,20 @@ public class Equipment implements Serializable {
      */
     @TableLogic
     private Integer isDeleted;
+
+
+    private String photoUrl;     // 设备照片链接
+    private String manualUrl;    // 使用手册链接
+
+    // 🌟 这是一个虚拟字段，数据库表中没有这个列，专门用来装查出来的实验室名字发给前端
+    @com.baomidou.mybatisplus.annotation.TableField(exist = false)
+    private String orgName;
+
+    // 🌟 新增：用来装计费规则的虚拟字段
+    @com.baomidou.mybatisplus.annotation.TableField(exist = false)
+    private Integer billingMode; // 计费模式：0-免费, 1-按时长
+
+    @com.baomidou.mybatisplus.annotation.TableField(exist = false)
+    private java.math.BigDecimal unitPrice; // 计费单价
+
 }
